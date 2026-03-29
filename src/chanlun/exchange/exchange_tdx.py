@@ -218,6 +218,7 @@ class ExchangeTDX(Exchange):
             args["pages"] = 12
 
         market, tdx_code, _type = self.to_tdx_code(code)
+        print(f"DEBUG to_tdx_code: {code} -> market={market}, tdx_code={tdx_code}, type={_type}")
         if market is None or _type is None:
             return None
 
@@ -232,6 +233,7 @@ class ExchangeTDX(Exchange):
                 ks: pd.DataFrame = self.fdb.get_tdx_klines(
                     Market.A.value, code, frequency
                 )
+                print(f"DEBUG: {code} {frequency} 缓存数据：{len(ks) if ks is not None else 'None'} 条")
                 if ks is None or len(ks) == 0:
                     # 获取 8*700 = 5600 条数据
                     ks = pd.concat(
@@ -251,6 +253,7 @@ class ExchangeTDX(Exchange):
                         sort=False,
                     )
                     if len(ks) == 0:
+                        print(f"DEBUG: {code} {frequency} pytdx API 返回空数据")
                         return pd.DataFrame([])
                     ks.loc[:, "date"] = pd.to_datetime(ks["datetime"])
                     ks.sort_values("date", inplace=True)
@@ -289,7 +292,12 @@ class ExchangeTDX(Exchange):
             # 删除重复数据
             ks = ks.drop_duplicates(["date"], keep="last").sort_values("date")
 
-            self.fdb.save_tdx_klines(Market.A.value, code, frequency, ks)
+            print(f"DEBUG: {code} {frequency} pytdx API 获取到 {len(ks)} 条数据，准备保存缓存...")
+            try:
+                self.fdb.save_tdx_klines(Market.A.value, code, frequency, ks)
+                print(f"DEBUG: {code} {frequency} 缓存保存成功")
+            except Exception as e:
+                print(f"DEBUG: {code} {frequency} 缓存保存失败：{e}")
 
             ks.loc[:, "code"] = code
             ks.loc[:, "volume"] = ks["vol"]

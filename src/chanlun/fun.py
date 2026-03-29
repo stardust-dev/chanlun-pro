@@ -36,11 +36,15 @@ def get_logger(filename=None, level=logging.INFO) -> logging.Logger:
         logger.addHandler(stream_handler)
 
     if filename and file_exists is False:
-        file_handler = logging.FileHandler(
-            filename=str(log_path / filename), encoding="utf-8"
-        )
-        file_handler.setFormatter(fmt)
-        logger.addHandler(file_handler)
+        try:
+            file_handler = logging.FileHandler(
+                filename=str(log_path / filename), encoding="utf-8"
+            )
+            file_handler.setFormatter(fmt)
+            logger.addHandler(file_handler)
+        except (PermissionError, OSError) as e:
+            print(f"无法创建日志文件 {filename}: {e}，将只使用控制台日志")
+            pass  # 如果无法创建文件日志，只使用 StreamHandler
 
     return logger
 

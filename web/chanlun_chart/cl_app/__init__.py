@@ -186,6 +186,21 @@ def create_app(test_config=None):
     # 记录请求次数，超过则返回 no_data
     __history_req_counter = {}
 
+    # 初始化时重置 pytdx IP，确保使用最新的服务器配置
+    try:
+        from chanlun.exchange.exchange_tdx import ExchangeTDX
+        tdx_ex = ExchangeTDX()
+        # 尝试重新连接，如果失败则使用现有连接
+        try:
+            tdx_ex.reset_tdx_ip()
+            print(f"已重置 pytdx 服务器 IP: {tdx_ex.connect_info}")
+        except Exception as reset_error:
+            # 如果重置失败，检查当前连接是否可用
+            print(f"pytdx IP 重置失败（使用现有连接）: {reset_error}")
+            print(f"当前 pytdx IP: {tdx_ex.connect_info}")
+    except Exception as e:
+        print(f"初始化 pytdx 失败：{e}")
+
     _alert_tasks = AlertTasks(scheduler)
     _alert_tasks.run()
 
@@ -512,7 +527,11 @@ def create_app(test_config=None):
         ):
             # 如果开启并设置的该级别的低级别数据，获取低级别数据，并在转换成高级图表展示
             # s_time = time.time()
-            klines = ex.klines(code, frequency_low)
+            try:
+                klines = ex.klines(code, frequency_low)
+            except Exception as e:
+                print(f"获取 K 线数据失败：{code} {frequency_low}, 错误：{e}")
+                klines = pd.DataFrame([])
             # __log.info(f'{code} - {frequency_low} enable low to high get klines time : {time.time() - s_time}')
             # s_time = time.time()
             cd = web_batch_get_cl_datas(
@@ -522,14 +541,23 @@ def create_app(test_config=None):
         else:
             kchart_to_frequency = None
             # s_time = time.time()
-            klines = ex.klines(code, frequency)
+            try:
+                klines = ex.klines(code, frequency)
+                print(f"{code} - {frequency} 获取 K 线数据：{len(klines) if klines is not None else 0} 条")
+                if klines is None or len(klines) == 0:
+                    print(f"警告：{code} - {frequency} 获取到的 K 线数据为空")
+            except Exception as e:
+                print(f"获取 K 线数据失败：{code} {frequency}, 错误：{e}")
+                import traceback
+                traceback.print_exc()
+                klines = pd.DataFrame([])
             # __log.info(f'{code} - {frequency} get klines time : {time.time() - s_time}')
             # s_time = time.time()
             cd = web_batch_get_cl_datas(market, code, {frequency: klines}, cl_config)[0]
             # __log.info(f'{code} - {frequency} get cd time : {time.time() - s_time}')
 
         # 如果图表指定返回的时间太早，直接返回无数据
-        if int(_to) < fun.datetime_to_int(klines.iloc[0]["date"]):
+        if len(klines) == 0 or int(_to) < fun.datetime_to_int(klines.iloc[0]["date"]):
             return {"s": "no_data"}
 
         # 将缠论数据，转换成 tv 画图的坐标数据

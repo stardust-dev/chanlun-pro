@@ -1225,10 +1225,15 @@ class DB(object):
                 return json.loads(cache.v)
             # 缓存数据不存在，或缓存数据已过期
             # 删除过期缓存数据，expire_time != 0 and expire_time < now
-            session.query(TableByCache).filter(
-                TableByCache.expire != 0, TableByCache.expire < now
-            ).delete()
-            session.commit()
+            try:
+                session.query(TableByCache).filter(
+                    TableByCache.expire != 0, TableByCache.expire < now
+                ).delete()
+                session.commit()
+            except Exception as e:
+                # 如果清理失败（如数据库只读），忽略错误继续使用
+                session.rollback()
+                print(f"清理过期缓存失败：{e}")
 
         return None
 

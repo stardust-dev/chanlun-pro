@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.crazychanlun.com)",
+      "mcp__codegraph__codegraph_context",
+      "mcp__codegraph__codegraph_status",
+      "WebFetch(domain:chanlun-pro.readthedocs.io)",
+      "WebSearch",
+      "WebFetch(domain:crazychanlun.com)"
+    ]
+  }
+}
